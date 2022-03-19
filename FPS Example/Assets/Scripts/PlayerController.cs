@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour
 {
@@ -10,6 +11,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float _runSpeed = 12f;
     [SerializeField] private float _gravityModifier = 0.95f;
     [SerializeField] private float _jumpPower = 0.25f;
+    [SerializeField] private InputAction _newMomentInput;
     [Header("Mouse Control Options")] 
     [SerializeField] private float _mouseSensitivity = 2.5f;
     [SerializeField] private float _maxViewAngle = 60f;
@@ -33,6 +35,17 @@ public class PlayerController : MonoBehaviour
         }
         mainCamera = GameObject.FindWithTag("CameraPoint").transform;
     }
+
+    private void OnEnable()
+    {
+        _newMomentInput.Enable();
+    }
+
+    private void OnDisable()
+    {
+        _newMomentInput.Disable();
+    }
+    
     private void Update()
     {
         KeyboardInput();
@@ -40,14 +53,15 @@ public class PlayerController : MonoBehaviour
 
     private void KeyboardInput()
     {
-        if (Input.GetKeyDown(KeyCode.Space) && _characterController.isGrounded)
+        _horizontalInput = _newMomentInput.ReadValue<Vector2>().x;
+        _verticalInput =  _newMomentInput.ReadValue<Vector2>().y;
+
+        if (Keyboard.current.spaceKey.wasPressedThisFrame && _characterController.isGrounded)
         {
             _jump = true;
         }
-        _horizontalInput = Input.GetAxisRaw("Horizontal");
-        _verticalInput = Input.GetAxisRaw("Vertical");
-
-        if (Input.GetKey(KeyCode.LeftShift))
+       
+        if (Keyboard.current.leftShiftKey.isPressed)
         {
             _currentSpeed = _runSpeed;
         }
@@ -92,7 +106,6 @@ public class PlayerController : MonoBehaviour
             transform.eulerAngles.z);
         if (mainCamera != null)
         {
-
             if (mainCamera.eulerAngles.x > _maxViewAngle && mainCamera.eulerAngles.x < 180f)
             {
                 mainCamera.rotation =
@@ -113,6 +126,6 @@ public class PlayerController : MonoBehaviour
 
     private Vector2 MouseInput()
     {
-        return new Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y")) * _mouseSensitivity;
+        return new Vector2(Mouse.current.delta.x.ReadValue(), Mouse.current.delta.y.ReadValue()) * _mouseSensitivity;
     }
 }
