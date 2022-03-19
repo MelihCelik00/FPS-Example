@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -7,6 +8,11 @@ public class PlayerController : MonoBehaviour
     [Header("Player Controller Settings")]
     [SerializeField] private float _walkSpeed = 8f;
     [SerializeField] private float _runSpeed = 12f;
+    [SerializeField] private float _gravityModifier = 0.95f;
+    [SerializeField] private float _jumpPower = 0.25f;
+    [Header("Mouse Control Options")] 
+    [SerializeField] private float _mouseSensitivity = 2.5f;
+    [SerializeField] private float _maxViewAngle = 60f;
 
     private CharacterController _characterController;
 
@@ -14,9 +20,18 @@ public class PlayerController : MonoBehaviour
     private float _horizontalInput;
     private float _verticalInput;
 
+    private Vector3 _heightMovement;
+    private bool _jump;
+
+    private Transform mainCamera;
     private void Awake()
     {
         _characterController = GetComponent<CharacterController>();
+        if (Camera.main.GetComponent<CameraController>() == null)
+        {
+            Camera.main.gameObject.AddComponent<CameraController>();
+        }
+        mainCamera = GameObject.FindWithTag("CameraPoint").transform;
     }
     private void Update()
     {
@@ -25,6 +40,10 @@ public class PlayerController : MonoBehaviour
 
     private void KeyboardInput()
     {
+        if (Input.GetKeyDown(KeyCode.Space) && _characterController.isGrounded)
+        {
+            _jump = true;
+        }
         _horizontalInput = Input.GetAxisRaw("Horizontal");
         _verticalInput = Input.GetAxisRaw("Vertical");
 
@@ -40,12 +59,60 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate() // waits physical operations to run
     {
-        Vector3 localVerticalVector = transform.forward * _verticalInput;
-        Vector3 localHorizontalVector = transform.right * _horizontalInput;
-        Vector3 _movementVector = localHorizontalVector + localVerticalVector ;
-        _movementVector.Normalize();
-        _movementVector *= _currentSpeed * Time.deltaTime;
-        _characterController.Move(_movementVector);
+        Move();
+        Rotate();
     }
 
+    private void Move()
+    {
+        if (_jump)
+        {
+            _heightMovement.y = _jumpPower;
+            _jump = false;
+        }
+
+        _heightMovement.y -= _gravityModifier * Time.deltaTime;
+        
+        Vector3 localVerticalVector = transform.forward * _verticalInput;
+        Vector3 localHorizontalVector = transform.right * _horizontalInput;
+        Vector3 _movementVector = localHorizontalVector + localVerticalVector;
+        _movementVector.Normalize();
+        _movementVector *= _currentSpeed * Time.deltaTime;
+        _characterController.Move(_movementVector + _heightMovement);
+
+        if (_characterController.isGrounded)
+        {
+            _heightMovement.y = 0f;
+        }
+    }
+
+    private void Rotate()
+    {
+        transform.rotation = Quaternion.Euler(transform.eulerAngles.x, transform.eulerAngles.y + MouseInput().x,
+            transform.eulerAngles.z);
+        if (mainCamera != null)
+        {
+
+            if (mainCamera.eulerAngles.x > _maxViewAngle && mainCamera.eulerAngles.x < 180f)
+            {
+                mainCamera.rotation =
+                    Quaternion.Euler(_maxViewAngle, mainCamera.eulerAngles.y, mainCamera.eulerAngles.z);
+            }
+            else if (mainCamera.eulerAngles.x > 180f && mainCamera.eulerAngles.x < 360f - _maxViewAngle)
+            {
+                mainCamera.rotation = Quaternion.Euler(360f - _maxViewAngle, mainCamera.eulerAngles.y,
+                    mainCamera.eulerAngles.z);
+            }
+            else
+            {
+                mainCamera.rotation = Quaternion.Euler(mainCamera.rotation.eulerAngles +
+                                                       new Vector3(-MouseInput().y, 0, 0));
+            }
+        }
+    }
+
+    private Vector2 MouseInput()
+    {
+        return new Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y")) * _mouseSensitivity;
+    }
 }
